@@ -311,28 +311,51 @@ function Hamiltonian(
 end
 
 
-#=
+
 #
 # No pspfiles given. Use Coulomb potential (all electrons)
 #
 # WARNING: This is not tested extensively
-function Hamiltonian( atoms::Atoms, ecutwfc::Float64;
+function Hamiltonian( atoms::Atoms, 
+		      ecutwfc::Float64;
                       Nspin=1,
                       meshk=[1,1,1],
                       shiftk=[0,0,0],
+		      time_reversal=true,
                       kpts_str="",
                       kpoints=nothing,   
                       xcfunc="VWN",
                       use_xc_internal=false,
-                      extra_states=0 )
+                      extra_states=0)
 
+    #=
+
+    atoms::Atoms,
+    pspfiles::Vector{String},
+    ecutwfc::Float64;
+    # Keyword arguments
+    dual::Float64=4.0,
+    Nspin::Int64=1,
+    meshk::Vector{Int64}=[1,1,1],  # FIXME: convert to tuple?
+    shiftk::Vector{Int64}=[0,0,0],
+    time_reversal::Bool=true,
+    Ns_::Tuple{Int64,Int64,Int64}=(0,0,0),
+    kpoints::Union{KPoints,Nothing}=nothing,
+    kpts_str::String="",
+    xcfunc::String="VWN",
+    use_xc_internal::Bool=false,
+    extra_states::Int64=-1,
+    Nstates::Int64=-1,
+    use_symmetry::Bool=true
+
+    =#
     sym_info = SymmetryInfo(atoms)
 
     # kpoints
     if kpoints == nothing
         if kpts_str == ""
             # automatic generation of kpoints
-            kpoints = KPoints( atoms, meshk, shiftk )
+            kpoints = KPoints( atoms, meshk, shiftk, sym_info.s, time_reversal=time_reversal )
         else
             # use the given kpoints
             kpoints = kpoints_from_string( atoms, kpts_str )
@@ -341,6 +364,23 @@ function Hamiltonian( atoms::Atoms, ecutwfc::Float64;
         @assert typeof(kpoints) == KPoints
     end
 
+    #=
+    # kpoints
+    if options.kpoints == nothing
+        if options.kpts_str == ""
+            # automatic generation of kpoints
+            kpoints = KPoints( atoms,
+                options.meshk, options.shiftk,
+                sym_info.s, time_reversal=options.time_reversal )
+        else
+            # use the given kpoints
+            kpoints = kpoints_from_string( atoms, options.kpts_str )
+        end
+    else
+        @assert typeof(kpoints) == KPoints
+    end
+
+    =#
 
     # Initialize plane wave grids
     pw = PWGrid( ecutwfc, atoms.LatVecs, kpoints=kpoints )
@@ -371,10 +411,13 @@ function Hamiltonian( atoms::Atoms, ecutwfc::Float64;
             zeros(Float64, prod(pw.Nss), Nspin)
         )
     else
-        potentials = Potentials(
+        # SS 
+	potentials = Potentials(
             V_Ps_loc, V_Hartree, V_xc, V_loc_tot,
-            nothing
+            nothing,
+            zeros(Float64, Npoints, Nspin)
         )
+
     end
     #
     energies = Energies()
@@ -406,11 +449,16 @@ function Hamiltonian( atoms::Atoms, ecutwfc::Float64;
         xc_calc = LibxcXCCalculator()
     end
 
+    #return Hamiltonian( pw, potentials, energies, rhoe, nothing,
+    #                    electrons, atoms, sym_info, rhoe_symmetrizer,
+    #                    pspots, pspotNL, xcfunc, xc_calc, ik, ispin )
+    need_overlap::Bool = false
     return Hamiltonian( pw, potentials, energies, rhoe, nothing,
-                        electrons, atoms, sym_info, rhoe_symmetrizer,
-                        pspots, pspotNL, xcfunc, xc_calc, ik, ispin )
+                    electrons, atoms, sym_info, rhoe_symmetrizer,
+                    pspots, pspotNL, xcfunc, xc_calc, ik, ispin, need_overlap )
+
 end
-=#
+
 
 
 # FIXME: should be merged with Array{Float64,2} version.
